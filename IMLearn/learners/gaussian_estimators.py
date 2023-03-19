@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import functools
 
 import numpy as np
 from numpy.linalg import inv, det, slogdet
@@ -208,5 +207,5 @@ class MultivariateGaussian:
         """
         m, d = X.shape[1], X.shape[0]
         x_minus_mu = X - mu
-        sum_of_rows = np.sum(np.diagonal(x_minus_mu @ cov @ x_minus_mu.T))
+        sum_of_rows = np.sum(np.diagonal(x_minus_mu @ np.linalg.inv(cov) @ x_minus_mu.T))
         return (-m*d/2 * math.log(2*math.pi)) - m/2*math.log(np.linalg.det(cov)) - 0.5*sum_of_rows

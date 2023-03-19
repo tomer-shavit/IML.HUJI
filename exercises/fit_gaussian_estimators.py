@@ -23,6 +23,7 @@ def test_univariate_gaussian():
                         xaxis={"title": "Sample size"}, yaxis={"title": "Difference in expectation"})
     fig2 = go.Figure(data=[scattered_data2], layout=layout2)
     fig2.show()
+    # pio.write_image(fig2, format='pdf', file="Question 2.pdf")
 
     # Question 3 - Plotting Empirical PDF of fitted model
     sorted_samples = np.sort(samples)
@@ -31,6 +32,8 @@ def test_univariate_gaussian():
                         xaxis={"title": "Sample value"}, yaxis={"title": "PDF value"})
     fig3 = go.Figure(data=[scattered_data3], layout=layout3)
     fig3.show()
+
+    # pio.write_image(fig3, format='pdf', file="Question 3.pdf")
 
 
 def test_multivariate_gaussian():
@@ -44,11 +47,30 @@ def test_multivariate_gaussian():
     print(multi_gau.cov_)
 
     # Question 5 - Likelihood evaluation
+    f1_array = np.linspace(-10, 10, 200)
+    f3_array = np.linspace(-10, 10, 200)
+
+    log_like = np.zeros((f1_array.size, f3_array.size))
+
+    for i in range(f1_array.size):
+        for j in range(f3_array.size):
+            mu5 = np.array([f1_array[i], 0, f3_array[j], 0])
+            log_like[i, j] = multi_gau.log_likelihood(mu5, sigma, samples)
+
+    heatmap_data5 = go.Heatmap(x=f1_array, y=f3_array, z=log_like, colorscale='Viridis')
+    layout5 = go.Layout(title="Heatmap of the log-likelihood of linespace [-10,10]", xaxis={"title": "f1 values"},
+                        yaxis={"title": "f3 values"})
+    fig5 = go.Figure(data=[heatmap_data5], layout=layout5)
+    fig5.show()
+    # pio.write_image(fig5, format='pdf', file="Question 5.pdf")
 
     # Question 6 - Maximum likelihood
+    max_index = np.argmax(log_like)
+    max_row, max_col = np.unravel_index(max_index, log_like.shape)
+    print("{:.3f} {:.3f}".format(f1_array[max_col], f3_array[max_col]))
 
 
 if __name__ == '__main__':
     np.random.seed(0)
-    # test_univariate_gaussian()
+    test_univariate_gaussian()
     test_multivariate_gaussian()
