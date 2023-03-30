@@ -12,7 +12,7 @@ class LinearRegression(BaseEstimator):
     Solving Ordinary Least Squares optimization problem
     """
 
-    def __init__(self, include_intercept: bool = True) -> LinearRegression:
+    def __init__(self, include_intercept: bool = True):
         """
         Instantiate a linear regression estimator
 
@@ -49,7 +49,11 @@ class LinearRegression(BaseEstimator):
         -----
         Fits model with or without an intercept depending on value of `self.include_intercept_`
         """
-        raise NotImplementedError()
+        if self.include_intercept_:
+            X = np.insert(X, 0, 1, axis=1)
+
+        x_dag = np.linalg.pinv(X)
+        self.coefs_ = x_dag @ y
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -65,7 +69,7 @@ class LinearRegression(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        return np.dot(self.coefs_, X.T)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -84,4 +88,6 @@ class LinearRegression(BaseEstimator):
         loss : float
             Performance under MSE loss function
         """
-        raise NotImplementedError()
+        pred = self._predict(X)
+        return (1 / pred.size) * np.sum(np.square(y - pred))
+
