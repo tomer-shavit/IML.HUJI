@@ -34,7 +34,7 @@ def load_data(filename: str):
     df['room_with_toilet'] = df['bathrooms'].apply(lambda x: 1 if '.5' in str(x) else 0)
     df['bathrooms'] = np.floor(df['bathrooms'])
 
-    df['zipcode'] = df['zipcode'].astype(int)
+    # df['zipcode'] = df['zipcode'].astype(int)
     df = pd.get_dummies(df, prefix="zipcode", columns=['zipcode'])
 
     no_price = df[df['price'] <= 0]
@@ -145,5 +145,5 @@ if __name__ == '__main__':
                        yaxis=dict(title="Mean Loss"))
 
     fig = go.Figure(data=scatter, layout=layout)
-    # fig.show()
+    fig.show()
     # pio.write_image(fig, "ex2_pdf/Mean loss p%.pdf")
