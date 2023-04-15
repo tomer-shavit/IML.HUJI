@@ -1,7 +1,7 @@
 from IMLearn.utils import split_train_test
 from IMLearn.learners.regressors import LinearRegression
 
-from typing import NoReturn
+from typing import NoReturn, Optional
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -10,43 +10,58 @@ import plotly.io as pio
 
 pio.templates.default = "simple_white"
 
+def remove_nan(X: pd.DataFrame, y: Optional[pd.Series] = None):
+    nan_rows_X = X.isnull().any(axis=1)
+    nan_rows_y = None
+    if y is not None:
+        nan_rows_y = y.isnull()
 
-def load_data(filename: str):
+    nan_rows = nan_rows_X
+    if nan_rows_y is not None:
+        nan_rows = nan_rows_X | nan_rows_y
+    X = X[~nan_rows]
+    if y is not None:
+        y = y[~nan_rows]
+
+    return X, y
+
+
+def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
     """
-    Load house prices dataset and preprocess data.
+    preprocess data
     Parameters
     ----------
-    filename: str
-        Path to house prices dataset
-
+    X : DataFrame of shape (n_samples, n_features)
+        Design matrix of regression problem
+    y : array-like of shape (n_samples, )
+        Response vector corresponding given samples
     Returns
     -------
-    Design matrix and response vector (prices) - either as a single
+    Post-processed design matrix and response vector (prices) - either as a single
     DataFrame or a Tuple[DataFrame, Series]
     """
-    df = pd.read_csv(filename)
-    df.drop(['id', 'date', 'sqft_living15', 'sqft_lot15', 'long', 'lat' ], axis=1, inplace=True)
-    df.dropna(inplace=True)
+    X.drop(['id', 'date', 'sqft_living15', 'sqft_lot15', 'long', 'lat'], axis=1, inplace=True)
+    X, y = remove_nan(X, y)
 
-    df['was_renovated'] = df['yr_renovated'].apply(lambda x: 1 if x > 0 else 0)
-    df.drop('yr_renovated', axis=1, inplace=True)
+    X = pd.get_dummies(X, prefix="zipcode", columns=['zipcode'])
 
-    df['room_with_toilet'] = df['bathrooms'].apply(lambda x: 1 if '.5' in str(x) else 0)
-    df['bathrooms'] = np.floor(df['bathrooms'])
+    no_price = X[X['price'] <= 0]
+    bad_grade = X[(X['grade'] < 1) | (X['grade'] > 13)]
+    bad_condition = X[(X['condition'] < 1) | (X['condition'] > 5)]
+    bad_view = X[(X['view'] < 0) | (X['view'] > 4)]
+    no_price_y = None
+    if y is not None:
+        no_price_y = y[y <= 0]
 
-    # df['zipcode'] = df['zipcode'].astype(int)
-    df = pd.get_dummies(df, prefix="zipcode", columns=['zipcode'])
+    mask_index = pd.concat([no_price, bad_grade, bad_condition, bad_view, no_price_y])
 
-    no_price = df[df['price'] <= 0]
-    bad_grade = df[(df['grade'] < 1) | (df['grade'] > 13)]
-    bad_condition = df[(df['condition'] < 1) | (df['condition'] > 5)]
-    bad_view = df[(df['view'] < 0) | (df['view'] > 4)]
-    mask_index = pd.concat([no_price, bad_grade, bad_condition, bad_view])
-    df.drop(mask_index.index, inplace=True)
+    X.drop(mask_index.index, inplace=True)
+    y.drop(mask_index.index, inplace=True)
 
-    y = df['price']
-    x = df.drop('price', axis=1)
+    x = X.drop('price', axis=1)
+
     return x, y
+
 
 def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
     """
@@ -81,36 +96,38 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     layout1 = go.Layout(title="Pearson Correlation of Features and the Price", xaxis={"title": "Feature Name"}
                         , yaxis={"title": "Pearson Correlation"})
     fig = go.Figure(data=[data1], layout=layout1)
-    # fig.show()
-
+    fig.show()
 
     # Highest is sqft_living with correlation of 0.702
     data2 = go.Scatter(x=X['sqft_living'], y=y, mode="markers")
     layout2 = go.Layout(title="Correlation between Living room size and the price",
                         xaxis={"title": "Living room size (sqft)"}, yaxis={"title": "House Price (USD)"})
     fig = go.Figure(data=[data2], layout=layout2)
-    # fig.show()
-    # pio.write_image(fig, "ex2_pdf/sqft_living and price.pdf")
+    fig.show()
+    pio.write_image(fig, "ex2_pdf/sqft_living and price.pdf")
     # Lowest is condition with correlation of 0.0362
 
     data3 = go.Scatter(x=X['condition'], y=y, mode="markers")
     layout3 = go.Layout(title="Correlation between House condition and the price",
                         xaxis={"title": "House condition (1-5)"}, yaxis={"title": "House Price (USD)"})
     fig = go.Figure(data=[data3], layout=layout3)
-    # fig.show()
-    # pio.write_image(fig, "ex2_pdf/condition and price.pdf")
+    fig.show()
+    pio.write_image(fig, "ex2_pdf/condition and price.pdf")
 
 
 if __name__ == '__main__':
     np.random.seed(0)
-    # Question 1 - Load and preprocessing of housing prices dataset
-    x, labels = load_data(r"C:\Users\tomer\Uni\IML.HUJI\datasets\house_prices.csv")
+    df = pd.read_csv("../datasets/house_prices.csv")
 
-    # Question 2 - Feature evaluation with respect to response
-    feature_evaluation(x, labels)
+    # Question 1 - split data into train and test sets
+    labels = df["price"]
+    train_x, train_y, test_x, test_y = split_train_test(df, labels)
 
-    # Question 3 - Split samples into training- and testing sets.
-    train_x, train_y, test_x, test_y = split_train_test(x, labels)
+    # Question 2 - Preprocessing of housing prices dataset
+    train_x, train_y = preprocess_data(train_x, train_y)
+
+    # Question 3 - Feature evaluation with respect to response
+    feature_evaluation(train_x, train_y)
 
     # Question 4 - Fit model over increasing percentages of the overall training data
     # For every percentage p in 10%, 11%, ..., 100%, repeat the following 10 times:
@@ -120,13 +137,15 @@ if __name__ == '__main__':
     #   4) Store average and variance of loss over test set
     # Then plot average loss as function of training size with error ribbon of size (mean-2*std, mean+2*std)
     linear_reg = LinearRegression()
-
+    test_x, test_y = preprocess_data(test_x, test_y)
+    test_x, train_x = test_x.align(train_x, axis=1, fill_value=0)
+    test_x = test_x[train_x.columns]
     mean_loss, mean_std, losses_10 = np.array([]), np.array([]), np.array([])
     for i in range(10, 101, 1):
         for j in range(10):
             sample = train_x.sample(frac=(i / 100))
             sample_labels = train_y.loc[sample.index]
-            loss = linear_reg.fit(sample, sample_labels).loss(sample, sample_labels)
+            loss = linear_reg.fit(sample, sample_labels).loss(test_x, test_y.to_numpy())
             losses_10 = np.append(losses_10, loss)
 
         mean_loss = np.append(mean_loss, np.mean(losses_10))
@@ -146,4 +165,4 @@ if __name__ == '__main__':
 
     fig = go.Figure(data=scatter, layout=layout)
     fig.show()
-    # pio.write_image(fig, "ex2_pdf/Mean loss p%.pdf")
+    pio.write_image(fig, "ex2_pdf/Mean loss p%.pdf")
