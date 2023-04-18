@@ -10,6 +10,7 @@ import plotly.io as pio
 
 pio.templates.default = "simple_white"
 
+
 def remove_nan(X: pd.DataFrame, y: Optional[pd.Series] = None):
     nan_rows_X = X.isnull().any(axis=1)
     nan_rows_y = None
@@ -24,6 +25,42 @@ def remove_nan(X: pd.DataFrame, y: Optional[pd.Series] = None):
         y = y[~nan_rows]
 
     return X, y
+
+
+def get_column_averages(X: pd.DataFrame):
+    result = {}
+    for col in X.columns:
+        values = X[col].values
+        if np.issubdtype(values.dtype, np.number) and not np.all(np.logical_or(values == 0, values == 1)):
+            result[col] = np.nanmean(values)
+        else:
+            result[col] = 0
+    return result
+
+
+def prepare_for_train(X: pd.DataFrame, y: Optional[pd.Series] = None):
+    X, y = remove_nan(X, y)
+    mask = (X['grade'] < 1) | (X['grade'] > 13) | (X['condition'] < 1) | (X['condition'] > 5) | \
+           (X['view'] < 0) | (X['view'] > 4)
+
+    if y is not None:
+        is_invalid_y = (y <= 0)
+        mask = mask | is_invalid_y
+
+    # Apply the mask to X and y
+    X = X.loc[~mask]
+    if y is not None:
+        y = y.loc[~mask]
+
+    return X, y
+
+
+def fill_nan_values(test_x: pd.DataFrame, avg_column_value):
+    for col in test_x.columns:
+        if test_x[col].isnull().sum() > 0:
+            avg_value = avg_column_value[col]
+            test_x[col].fillna(avg_value, inplace=True)
+    return test_x
 
 
 def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
@@ -41,26 +78,15 @@ def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
     DataFrame or a Tuple[DataFrame, Series]
     """
     X.drop(['id', 'date', 'sqft_living15', 'sqft_lot15', 'long', 'lat'], axis=1, inplace=True)
-    X, y = remove_nan(X, y)
-
     X = pd.get_dummies(X, prefix="zipcode", columns=['zipcode'])
-
-    no_price = X[X['price'] <= 0]
-    bad_grade = X[(X['grade'] < 1) | (X['grade'] > 13)]
-    bad_condition = X[(X['condition'] < 1) | (X['condition'] > 5)]
-    bad_view = X[(X['view'] < 0) | (X['view'] > 4)]
-    no_price_y = None
     if y is not None:
-        no_price_y = y[y <= 0]
+        nan_indexes = y.index[y.isna()]
+        X = X.drop(nan_indexes)
+        y = y.drop(nan_indexes)
+        X = X.reset_index(drop=True)
+        y = y.reset_index(drop=True)
 
-    mask_index = pd.concat([no_price, bad_grade, bad_condition, bad_view, no_price_y])
-
-    X.drop(mask_index.index, inplace=True)
-    y.drop(mask_index.index, inplace=True)
-
-    x = X.drop('price', axis=1)
-
-    return x, y
+    return X, y
 
 
 def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
@@ -121,7 +147,11 @@ if __name__ == '__main__':
 
     # Question 1 - split data into train and test sets
     labels = df["price"]
+    df = df.drop("price", axis=1)
+
     train_x, train_y, test_x, test_y = split_train_test(df, labels)
+    train_x, train_y = prepare_for_train(train_x, train_y)
+    avg_column_value = get_column_averages(train_x)
 
     # Question 2 - Preprocessing of housing prices dataset
     train_x, train_y = preprocess_data(train_x, train_y)
@@ -140,6 +170,8 @@ if __name__ == '__main__':
     test_x, test_y = preprocess_data(test_x, test_y)
     test_x, train_x = test_x.align(train_x, axis=1, fill_value=0)
     test_x = test_x[train_x.columns]
+    test_x = fill_nan_values(test_x, avg_column_value)
+
     mean_loss, mean_std, losses_10 = np.array([]), np.array([]), np.array([])
     for i in range(10, 101, 1):
         for j in range(10):
