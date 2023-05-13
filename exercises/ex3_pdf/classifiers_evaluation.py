@@ -129,6 +129,7 @@ def compare_gaussian_classifiers():
                             get_ellipse(lda.mu_[i], lda.cov_)], rows=[1,1], cols=[1,2])
 
         fig.update_layout(title_text=f"Comparing Gaussian and LDA classifiers, dataset - {f[:-4]}", showlegend=False)
+        # fig.show()
         fig.write_image(f"./ex3_pdf/{f[:-4]}.pdf")
 
 

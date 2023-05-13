@@ -84,9 +84,6 @@ class GaussianNaiveBayes(BaseEstimator):
         normal = np.exp(- ((X[:, np.newaxis, :] - self.mu_) ** 2) / (2 * self.vars_)) * scalars
         return np.prod(normal, axis=2) * self.pi_
 
-        # l = np.exp((X[:, np.newaxis, :] - self.mu_) ** 2 / (- 2 * self.vars_)) / np.sqrt( 2 * np.pi * self.vars_)
-        # return np.prod(l, axis=2) * self.pi_
-
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
         Evaluate performance under misclassification loss function
