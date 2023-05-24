@@ -5,6 +5,8 @@ import numpy as np
 from itertools import product
 
 
+
+
 class DecisionStump(BaseEstimator):
     """
     A decision stump classifier for {-1,1} labels according to the CART algorithm
@@ -39,7 +41,16 @@ class DecisionStump(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
-        raise NotImplementedError()
+        labels = [-1, 1]
+        min_err = float("inf")
+        for i, sign in product(range(X.shape[1]), labels):
+            thre, thre_err = self._find_threshold(X[:, i], y, sign)
+            if thre_err < min_err:
+                self.threshold_ = thre
+                self.j_ = i
+                self.sign_ = sign
+                min_err = thre_err
+
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -63,7 +74,14 @@ class DecisionStump(BaseEstimator):
         Feature values strictly below threshold are predicted as `-sign` whereas values which equal
         to or above the threshold are predicted as `sign`
         """
-        raise NotImplementedError()
+        pred = np.zeros(X.shape[0])
+        for i, val in enumerate(X[:, self.j_]):
+            if val < self.threshold_:
+                pred[i] = -self.sign_
+            else:
+                pred[i] = self.sign_
+
+        return pred
 
     def _find_threshold(self, values: np.ndarray, labels: np.ndarray, sign: int) -> Tuple[float, float]:
         """
@@ -95,7 +113,14 @@ class DecisionStump(BaseEstimator):
         For every tested threshold, values strictly below threshold are predicted as `-sign` whereas values
         which equal to or above the threshold are predicted as `sign`
         """
-        raise NotImplementedError()
+        sort_ids = np.argsort(values)
+        vals = values[sort_ids]
+        vals_labels = labels[sort_ids]
+        error = np.sum(np.abs(vals_labels)[np.sign(vals_labels) == sign])
+        error = np.append(error, error - np.cumsum(vals_labels * sign))
+        min_id = np.argmin(error)
+
+        return np.concatenate([[-float("inf")], vals[1:], [float("inf")]])[min_id], error[min_id]
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -114,4 +139,6 @@ class DecisionStump(BaseEstimator):
         loss : float
             Performance under missclassification loss function
         """
-        raise NotImplementedError()
+        from ...metrics import misclassification_error
+        return misclassification_error(y, self.predict(X))
+

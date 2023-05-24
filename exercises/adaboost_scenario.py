@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Tuple
-from IMLearn.learners.metalearners.adaboost import AdaBoost
+from IMLearn.metalearners.adaboost import AdaBoost
 from IMLearn.learners.classifiers import DecisionStump
 from utils import *
 import plotly.graph_objects as go
@@ -38,24 +38,48 @@ def generate_data(n: int, noise_ratio: float) -> Tuple[np.ndarray, np.ndarray]:
     return X, y
 
 
+
 def fit_and_evaluate_adaboost(noise, n_learners=250, train_size=5000, test_size=500):
     (train_X, train_y), (test_X, test_y) = generate_data(train_size, noise), generate_data(test_size, noise)
 
+
     # Question 1: Train- and test errors of AdaBoost in noiseless case
-    raise NotImplementedError()
+    ada_b = AdaBoost(DecisionStump, n_learners).fit(train_X, train_y)
+    loss_train = np.zeros(n_learners)
+    loss_test = np.zeros(n_learners)
+    for i in range(n_learners):
+        loss_test[i] = ada_b.partial_loss(test_X, test_y, i+1)
+        loss_train[i] = ada_b.partial_loss(train_X, train_y, i+1)
+
+    scatter1 = go.Scatter(x=np.arange(1, n_learners+1), y=loss_train, mode="lines", name="train")
+    scatter2 = go.Scatter(x=np.arange(1, n_learners+1), y=loss_test, mode="lines", name="test")
+
+
+    layout1 = go.Layout(title="Partial loss on committee members", xaxis_title="Members in the committee", yaxis_title="Loss")
+    fig1 = go.Figure(data=[scatter1, scatter2], layout=layout1)
+    # fig1.write_image("./ex4_pdf/partial_loss.pdf")
+
 
     # Question 2: Plotting decision surfaces
     T = [5, 50, 100, 250]
     lims = np.array([np.r_[train_X, test_X].min(axis=0), np.r_[train_X, test_X].max(axis=0)]).T + np.array([-.1, .1])
-    raise NotImplementedError()
 
-    # Question 3: Decision surface of best performing ensemble
-    raise NotImplementedError()
-
-    # Question 4: Decision surface with weighted samples
-    raise NotImplementedError()
+    fig2 = make_subplots(1, 4, subplot_titles=[f"{t} Members" for t in T])
+    for i in range(len(T)):
+        fig2.add_traces([decision_surface(lambda dataset: ada_b.partial_predict(dataset, T[i]), lims[0], lims[1],
+                                             showscale=False),
+                             go.Scatter(x=test_X[:,0], y=test_X[:,1], mode="markers",showlegend=False, marker=dict(color=test_y,
+                                    symbol=np.where(test_y == 1, "circle", "x")))], rows=1, cols=i+1,)
+    # fig2.write_image(f"./ex4_pdf/desision_surface_{noise}_noise.pdf")
+    #
+    # # Question 3: Decision surface of best performing ensemble
+    # raise NotImplementedError()
+    #
+    # # Question 4: Decision surface with weighted samples
+    # raise NotImplementedError()
 
 
 if __name__ == '__main__':
     np.random.seed(0)
-    raise NotImplementedError()
+    fit_and_evaluate_adaboost(0)
+
