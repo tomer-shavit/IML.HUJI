@@ -83,10 +83,6 @@ class UnivariateGaussian:
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `pdf` function")
 
-        # pdf_scalar = 1 / pow(2 * math.pi * self.var_**2, 0.5)
-        # pdf = lambda x: pdf_scalar * math.exp((-pow(x - self.mu_, 2)) / (2 * self.var_**2))
-        # pdf_vector = np.vectorize(pdf)
-        # return pdf_vector(X)
         return np.exp(- (X - self.mu_) ** 2 / (2 * self.var_)) / np.sqrt(2 * np.pi * self.var_)
 
     @staticmethod
